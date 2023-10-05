@@ -1,0 +1,355 @@
+---
+title: "GGPlot_Markdown"
+output: github_document
+---
+
+
+*Basic Graph Components**
+
+* Data: our actual information 
+
+* Aesthetic mappings: Need to map the aesthetics of the plot to the variables --> need to know what we actually want
+
+* geoms: A layer combines data, aesthetic mapping, a geom (geometric object)
+
+## Viz and EDA
+```{r}
+library(tidyverse)
+library(ggridges)
+library(patchwork)
+
+knitr::opts_chunk$set(
+  fig.width= 6,
+  fig.asp= .6,
+  out.width= "90%"
+)
+```
+
+Pulling in data from a national weather registry. Keeping certain variables and recoding the name to be more descriptive in our case. 
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USW00022534 = "Molokai_HI",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+
+```
+
+
+Let's make a plot!
+```{r}
+ggplot(weather_df, aes(x = tmin, y = tmax)) +
+  geom_point()
+```
+Helpway coding options
+
+* geom_point: gives us a scatterplot
+
+* 
+
+**Pipes and Stuff**
+```{r}
+weather_df |> 
+  filter(name == "CentralPark_NY") |> 
+  ggplot(aes(x=tmin, y=tmax)) +
+  geom_point()
+
+ggp_nyc_weather= 
+  weather_df |> 
+  filter(name == "CentralPark_NY") |> 
+  ggplot(aes(x=tmin, y=tmax)) +
+  geom_point()
+```
+This version takes the same plot. Can help us since we are basically saying "start with this data frame" and then we can add additional options below it not just limited to making our graphs!
+
+## Fancy Plot
+```{r}
+ggplot(weather_df, aes(x=tmin, y=tmax, color=name))+
+  geom_point()+
+  geom_smooth()
+
+ggplot(weather_df, aes(x=tmin, y=tmax))+
+  geom_point(aes(color=name))+
+  geom_smooth()
+
+ggplot(weather_df, aes(x=tmin, y=tmax))+
+  geom_point(aes(color=name))+
+  geom_smooth(se= FALSE)
+
+ggplot(weather_df, aes(x=tmin, y=tmax))+
+  geom_point(aes(color=name), alpha= 0.3)+
+  geom_smooth(se= FALSE)
+```
+
+* All we did was adding up colors based off of the name (the location for the data!)
+
+* In first for fancy, we colored all the points and the geom_smooth line. For the second, we are just coloring the points and the smooth will not change colors. 
+
+* Third graph adds in a se= FALSE which takes away SE bars? 
+
+* 4th: we are adding alpha under geom_point to make certain values more transparent.
+
+**Plot with facets**
+```{r}
+ggplot(weather_df, aes(x=tmin, y=tmax, color=name))+
+  geom_point(alpha=0.3) +
+  geom_smooth() +
+  facet_grid(. ~ name)
+```
+
+* We are using facet to separate everything by their name. We use (. ~ variable) to separate our plots verticals into different of the variable.
+
+Let's try a different plot. no longer temp.
+
+```{r}
+ggplot(weather_df, aes(x=date, y=tmax, color= name))+
+  geom_point()
+
+ggplot(weather_df, aes(x=date, y=tmax, color= name))+
+  geom_point(aes(size=prcp), alpha=0.3)+
+  geom_smooth() + 
+  facet_grid(. ~ name)
+```
+
+* Now we can see the temperature variation. 
+
+* 2nd: we add in the smoothing lines, make the points more transparent, and we are also adding precipitation data to our individual points. We are adding precip data in expanding points based on precip. 
+
+**Trying to assign a specific color**
+```{r}
+weather_df |> 
+  filter(name =="CentralPark_NY") |> 
+  ggplot(aes(x=date, y= tmax))+
+  geom_point(color= "blue")
+```
+
+```{r}
+weather_df |> 
+  filter(name== "Molokai_HI") |> 
+  ggplot(aes(x=date, y=tmax)) +
+  geom_line(alpha= 0.5)+
+  geom_point(size= 0.5)
+```
+`geom_line` helps us make a line graph
+
+geo_hex() does something??
+
+#univariate plotting
+histogram
+
+```{r}
+ggplot(weather_df, aes(x=tmax))+
+  geom_histogram()
+```
+
+
+```{r}
+ggplot(weather_df, aes(x=tmax, fill=name))+
+  geom_density(alpha= .3)
+```
+
+**Boxplots**
+
+```{r}
+ggplot(weather_df, aes(y=tmax))+
+  geom_boxplot()
+
+ggplot(weather_df, aes(y=tmax, x = name))+
+  geom_boxplot()
+```
+
+* Using Y= sets the boxplots vertically
+
+**Violin Plots**
+
+```{r}
+ggplot(weather_df, aes(y=tmax, x=name))+
+  geom_violin()
+```
+
+
+**Ridge Plot**
+
+```{r}
+ggplot(weather_df, aes(x=tmax, y= name))+
+  geom_density_ridges()
+```
+
+## Saving and embedding plots
+
+```{r}
+ggp_weather=
+  weather_df |> 
+  ggplot(aes(x=tmin, y=tmax))+
+  geom_point()
+
+ggp_weather
+
+ggsave("results/ggp_weather.pdf", ggp_weather)
+```
+
+- we made new folder for the plot
+
+```{r, fig.width=12, fig.height= 12}
+ggp_weather
+```
+
+```{r, fig.width=6, fig.height= .6}
+ggp_weather
+```
+
+
+## Same plot as last time
+```{r}
+weather_df |> 
+  ggplot(aes(x= tmin, y= tmax, color= name)) + 
+  geom_point(alpha= .5) +
+  labs(
+    x= "Min daily temp (Degrees C)",
+    y= "Max daily temp", 
+    color= "Location",
+    caption = "Max vs min daily temp in three locations; data from moaa"
+  )+
+  scale_x_continuous(
+    breaks= c(-15, 0, 15),
+    labels= c("-15 C", "0 C", "15 C")
+    ) +
+  scale_y_continuous(
+    position= "right",
+    limits= c(20, 30)
+  )
+```
+
+```{r}
+weather_df |> 
+  ggplot(aes(x= tmin, y= tmax, color= name)) + 
+  geom_point(alpha= .5) +
+  labs(
+    x= "Min daily temp (Degrees C)",
+    y= "Max daily temp", 
+    color= "Location",
+    caption = "Max vs min daily temp in three locations; data from moaa"
+  )+
+  viridis::scale_color_viridis(discrete= TRUE)+
+  theme_bw()+
+  theme(legend.position= "bottom")
+```
+**Overall theme shuold be before we change up the theme or we override the changes**
+
+## Data Argument...
+
+```{r}
+weather_df |> 
+  ggplot(aes(x=date, y=tmax, color=name))+
+  geom_point() + 
+  geom_smooth()
+
+ ggplot(nyc_weather_df, aes(x=date, y=tmax, color=name))+
+  geom_point() + 
+  geom_line(data= hawaii_weather_df)
+```
+
+## `patchwork`
+
+```{r}
+weather_df |> 
+   ggplot(aes(x=date, y=tmax, color=name))+
+  geom_point() +
+  facet_grid (. ~ name)
+```
+
+```{r}
+ggp_temp_scatter=
+  weather_df |> 
+  ggplot(aes(x=tmin, y=tmax, color=name))+
+  geom_point(alpha=0.5)
+
+ggp_prcp_density=
+  weather_df |> 
+  filter(prcp>25) |> 
+  ggplot(aes(x=prcp, fill =name))+
+  geom_density(alpha= .5)
+```
+
+** patchwork pacakge is designed to help plots come together!- well next to each other**
+
+```{r}
+ggp_temp_scatter+ggp_prcp_density
+
+ggp_temp_scatter=
+  weather_df |> 
+  ggplot(aes(x=tmin, y=tmax, color=name))+
+  geom_point(alpha=0.5)+
+theme(legend.position= "none")
+
+ggp_tmax_date=
+  weather_df |> 
+  filter(prcp>25) |> 
+  ggplot(aes(x=prcp, fill =name))+
+  geom_density(alpha= .5)+
+theme(legend.position= "bottom")
+
+(ggp_temp_scatter+ggp_prcp_density)/ggp_tmax_date
+```
+
+## data manip
+
+```{r}
+weather_df |> 
+  ggplot(aes(x= name, y=tmax))+
+  geom_boxplot()
+
+weather_df |> 
+  mutate(
+    name = fct_relevel(name, c("Molokai_HI", "CentralPark_NY", "Waterhole_WA"))
+  ) |> 
+ggplot(aes(x= name, y=tmax))+
+  geom_boxplot()
+
+
+weather_df |> 
+  mutate(
+    name= fct_reorder(name, tmax)
+    ) |> 
+  ggplot(aes(x= name, y= tmax, fill= name))+
+  geom_violin()
+
+```
+
+```{r}
+litters_df=
+  read_csv("data/FAS_litters.csv") |> 
+  janitor::clean_names() |> 
+  separate(group, into =c("dose", "day_of_tx"), sep= 3)
+
+pups_df=
+  read_csv("data/FAS_pups.csv") |> 
+  janitor::clean_names()
+
+fas_df=
+  left_join(pups_df, litters_df, by= "litter_number")
+
+fas_df |> 
+  select(dose, day_of_tx, starts_with("pd")) |> 
+  pivot_longer(
+    pd_ears:pd_walk,
+    names_to="outcome",
+    values_to= "pn_day"
+  ) |> 
+  drop_na() |> 
+  mutate(outcome= fct_reorder(outcome, pn_day)) |> 
+  ggplot(aes(x=dose, y=pn_day))+
+  geom_violin()+
+  facet_grid(day_of_tx~outcome)
+```
+

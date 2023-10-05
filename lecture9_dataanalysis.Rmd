@@ -1,6 +1,167 @@
 ---
-title: "Lecture9_DataAnalysis"
+title: "EDA: Numeric Summaries"
 author: "Andy Turner"
 date: "2023-10-05"
 output: github_document
 ---
+
+**group_by()** makes grouping explicit and adds a layer to yoru data
+
+* Based on existing variables 
+* Changes behavior of some key functions 
+* Not exactly invisible, but it’s easy to miss … 
+
+**summarize()** allows you to compute one-number summaries
+
+* Based on existing variables
+* Most useful in conjunction with group_by() 
+* Produces a dataframe with grouping variables and summaries –Easy to integrate into a pipeline 
+
+
+
+*Basic Graph Components**
+
+* Data: our actual information 
+
+* Aesthetic mappings: Need to map the aesthetics of the plot to the variables --> need to know what we actually want
+
+* geoms: A layer combines data, aesthetic mapping, a geom (geometric object)
+
+## Viz and EDA
+```{r}
+library(tidyverse)
+library(ggridges)
+library(patchwork)
+library(lubridate)
+
+knitr::opts_chunk$set(
+  fig.width= 6,
+  fig.asp= .6,
+  out.width= "90%"
+)
+```
+
+Pulling in data from a national weather registry. Keeping certain variables and recoding the name to be more descriptive in our case. 
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USW00022534 = "Molokai_HI",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    month = lubridate::floor_date(date, unit = "month")) |>
+  select(name, id, everything())
+
+```
+
+## Initial numeric work
+
+```{r}
+weather_df |> 
+  ggplot(aes(x=prcp))+
+  geom_histogram()
+```
+
+here are the big outliers
+```{r}
+weather_df |> 
+  filter(prcp >1000)
+```
+
+```{r}
+weather_df |> 
+  filter(tmax >= 20, tmax <= 30) |> 
+  ggplot(aes(x=tmin, y=tmax, color= name))+
+  geom_point()
+```
+
+## Grouping
+
+```{r}
+weather_df |> 
+  group_by(name)
+```
+^ Grouping often looks invisible because there isn't anything that shows up in environment; however, there is a line that shows up in the console that says: "Groups:   name [3]"
+
+```{r}
+weather_df |> 
+  group_by(name, month)
+```
+ Groups:   name, month [72] <- 72 unique groups in the data set
+ 
+## Counting
+
+```{r}
+weather_df |> 
+  group_by(name, month) |> 
+  summarize(n_obs= n())
+```
+- Around 30 in each group (which makes sense since 1 a day)
+
+```{r}
+weather_df |> 
+  group_by(month) |> 
+  summarize(n_obs= n())
+```
+- Around 90 in each group (tracks as there are 3 stations each 1 a day)
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  summarize(n_obs= n())
+```
+- 730 each (2 years of data!)
+
+```{r}
+weather_df |> 
+  count(name, month) |> 
+  pivot_wider(
+    names_from= name,
+    values_from= n
+  )
+```
+
+## General Summaries
+
+```{r}
+weather_df |> 
+  group_by(name, month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm= TRUE ),
+    median_tmax= median(tmax, na.rm= TRUE),
+    sd_tmax= sd(tmax, na.rm=TRUE)
+  )
+```
+`na.rm` is to remove missing values/NAs!!! `na.rm = TRUE` would remove the values. 
+
+When we are using summarize, we can make a temporary data frame using grouping and summarizing
+
+```{r}
+weather_df |> 
+  group_by(name,month) |> 
+  summarize(mean_tmax= mean(tmax, na.rm=TRUE)) |> 
+  ggplot(aes(x= month, y=mean_tmax, color=name))+
+  geom_point()+
+  geom_line()
+```
+We can use the grouped together or summarized collections and push it right into a graph. 
+
+```{r}
+weather_df |> 
+  group_by(name,month) |> 
+  summarize(mean_tmax= mean(tmax, na.rm=TRUE)) |> 
+  pivot_wider(
+    names_from= name,
+    values_from= mean_tmax
+  ) |> 
+  knitr::kable(digits=2)
+```
+Using `knitr: kable()`formats everything as a table we would want for a DF.
