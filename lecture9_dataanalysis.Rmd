@@ -165,3 +165,53 @@ weather_df |>
   knitr::kable(digits=2)
 ```
 Using `knitr: kable()`formats everything as a table we would want for a DF.
+
+## Grouoped mutate
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  mutate(mean_tmax= mean(tmax, na.rm =TRUE),
+  centered_tmax = tmax - mean_tmax) |> 
+  ggplot(aes(x=date, y=centered_tmax, color=name))+
+  geom_point()
+```
+
+```{r}
+weather_df |> 
+  group_by(name, month) |> 
+  mutate(tmax_rank = max_rank(tmax)) |> 
+  filter(tmax_rank<2)
+
+weather_df |> 
+  group_by(name, month) |> 
+  mutate(tmax_rank = min_rank(desc(tmax))) |> 
+  filter(tmax_rank<2)
+```
+`rank` is helping us identify how the data shapes up compared to different observations. 
+We wanting to find when tmax is smallest using `min_rank` --> super cool!
+- doing reverse when we add the `desc()`
+
+lags
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  mutate(yesterday_tmax= lag(tmax))
+
+weather_df |> 
+  group_by(name) |> 
+  mutate(yesterday_tmax= lag(tmax, 3))
+```
+- adding a column which gives us the temperature max for the day prior!
+- when we add 3 to the `lag()` we are getting from 3 observations prior -- but if you forget to group then you can get garbage since it could move from Molokai to NYC by accident :(
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  mutate(temp_change =tmax - lag(tmax)) |> 
+  summarize(
+    sd_temp_change= sd(temp_change, na.rm= TRUE)
+  )
+```
+- temp_change: difference in temp between two days!(variable we made, not built in)
+- sd_temp_change: giving ourselves the standard deviation in temp between the three locations which were grouped by name
